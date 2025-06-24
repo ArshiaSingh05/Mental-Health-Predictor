@@ -27,7 +27,7 @@ df = pd.get_dummies(df, columns=['Gender'])
 
 df = df[(df['Age'] >= 10) & (df['Age'] <= 90)]
 
-# Binary columns #
+# Binary columns #10
 binary_columns = ['self_employed', 'family_history', 'treatment', 'remote_work', 'tech_company']
 for col in binary_columns:
     df[col] = df[col].str.strip().str.lower()
@@ -37,9 +37,14 @@ for col in binary_columns:
         'na': np.nan,
         'n/a': np.nan,
     })
-df['self_employed'] = df['self_employed'].str.strip().str.lower()
+# Fill self_employed separately before mapping
 df['self_employed'] = df['self_employed'].replace(r'^\s*$', np.nan, regex=True)
 df['self_employed'] = df['self_employed'].fillna('No')
+
+# Now encode all
+for col in binary_columns:
+    df[col] = df[col].map({'Yes': 1, 'No': 0})
+
 
 # Categorical columns #
 df['work_interfere'] = df['work_interfere'].str.strip().str.lower()
@@ -56,6 +61,7 @@ df['work_interfere'] = df['work_interfere'].replace({
     'sometimes': 'Sometimes',
     'often': 'Often'
 })
+df['work_interfere'] = df['work_interfere'].map({'Often': 1, 'Never': 0, 'Sometimes':2, 'Rarely':3})
 df['leave'] = df['leave'].str.strip().str.lower()
 df['leave'] = df['leave'].replace({
     "very difficult": "Difficult",
@@ -67,7 +73,7 @@ df['leave'] = df['leave'].replace({
 })
 df['leave'] = df['leave'].replace(r'^\s*$', np.nan, regex=True)
 df['leave'] = df['leave'].fillna(df['leave'].mode()[0])
-
+df['leave'] = df['leave'].map({'Difficult': 1, 'Easy': 0})
 # no of employees supportive #
 df['no_employees'] = df['no_employees'].str.strip().str.lower()
 df['no_employees'] = df['no_employees'].replace({
@@ -87,6 +93,7 @@ midpoint_map = {
 }
 df['no_employees_mid'] = df['no_employees'].map(midpoint_map)
 df['no_employees_mid'] = df['no_employees_mid'].fillna(df['no_employees_mid'].median())
+df.drop(columns=['no_employees'], inplace=True)
 
 # employer_related columns #
 employer_columns = ['benefits', 'care_options', 'wellness_program', 'seek_help', 'anonymity']
@@ -102,6 +109,8 @@ for col in employer_columns:
         np.nan: 'Unknown'
     })
     df[col] = df[col].fillna('Unknown')
+for col in employer_columns:
+    df[col] = df[col].map({'No': 0, 'Maybe': 2, 'Unknown': 2, 'Yes': 1})
 
 # perception_based columns #
 perception_columns = [
@@ -122,6 +131,8 @@ for col in perception_columns:
         'n/a': 'Maybe'
     })
     df[col] = df[col].fillna('Maybe')
+for col in perception_columns:
+    df[col] = df[col].map({'No': 0, 'Maybe': 2, 'Yes': 1})
 
 # communication related columns #
 comm_columns = ['coworkers', 'supervisor']
@@ -138,10 +149,19 @@ for col in comm_columns:
         'n/a': 'Maybe'
     })
     df[col] = df[col].fillna('Maybe')
+for col in comm_columns:
+    df[col] = df[col].map({'No': 0, 'Maybe': 2, 'Yes': 1})
 
 df.drop(columns=['comments','Timestamp'], inplace=True)
 df['state'] = df['state'].replace(r'^\s*$', np.nan, regex=True)
 df['state'] = df['state'].fillna('Unknown')
 
-df.to_csv("cleaned_dataset.csv", index=False)
-print(df['self_employed'].isna().sum()) 
+print("Missing in self_employed after mapping:", df['self_employed'].isna().sum())
+print("Missing in treatment after mapping:", df['treatment'].isna().sum())
+# List of columns with string categories to encode
+cat_cols = df.select_dtypes(include='object').columns.tolist()
+# Remove the target and optional columns from encoding
+cat_cols = [col for col in cat_cols if col not in ['Country', 'state', 'treatment']]
+df = pd.get_dummies(df, columns=cat_cols)
+
+df.to_csv("cleaned_dataset.csv", index=False) 
