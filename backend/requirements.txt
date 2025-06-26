@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pydantic
+joblib
+pandas
+numpy           # if you need extra preprocessing
+scikit-learn    # same version you trained with
+python-multipart  # (only if you plan to upload files)
